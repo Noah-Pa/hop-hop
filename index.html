@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hop Hop</title>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #ffe6f9;
+            font-family: Arial, sans-serif;
+        }
+        #game {
+            width: 600px;
+            height: 300px;
+            position: relative;
+            overflow: hidden;
+            background-color: #ffd1e8;
+            border: 2px solid #ff99c8;
+        }
+        #character {
+            width: 50px;
+            height: 50px;
+            background-color: #ff66b3;
+            position: absolute;
+            bottom: 0;
+            left: 40px;
+        }
+        .obstacle {
+            width: 30px;
+            height: 30px;
+            background-color: #ff3399;
+            position: absolute;
+            bottom: 0;
+            left: 600px;
+        }
+        .coin {
+            width: 20px;
+            height: 20px;
+            background-color: #ffff66;
+            border-radius: 50%;
+            position: absolute;
+            left: 600px;
+        }
+        #score, #level {
+            position: absolute;
+            top: 10px;
+            font-size: 20px;
+            color: #ff3381;
+            display: none;
+        }
+        #score { left: 10px; }
+        #level { right: 10px; }
+        .jump {
+            animation: jump 0.5s ease-out;
+        }
+        @keyframes jump {
+            0% { bottom: 0; }
+            40% { bottom: 150px; }
+            100% { bottom: 0; }
+        }
+        #welcomeScreen, #gameOver {
+            display: flex;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 200, 221, 0.9);
+            color: #ff3381;
+            font-size: 30px;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+        }
+        #gameOver { display: none; }
+        button {
+            background-color: #ff66b3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 20px;
+            cursor: pointer;
+            border-radius: 10px;
+        }
+        button:hover { background-color: #ff3381; }
+    </style>
+</head>
+<body>
+<div id="game">
+    <div id="score">Score: 0</div>
+    <div id="level">Level: 1</div>
+    <div id="character"></div>
+    <div id="welcomeScreen">
+        <p>🐰 Hop Hop!</p>
+        <button onclick="startGame()">Start</button>
+    </div>
+    <div id="gameOver">
+        <p>Game Over! Score: <span id="finalScore"></span> | Level: <span id="finalLevel"></span></p>
+        <button onclick="restartGame()">Play Again</button>
+    </div>
+</div>
+<script>
+    const character = document.getElementById("character");
+    const scoreDisplay = document.getElementById("score");
+    const levelDisplay = document.getElementById("level");
+    const gameOverScreen = document.getElementById("gameOver");
+    const welcomeScreen = document.getElementById("welcomeScreen");
+    const finalScoreDisplay = document.getElementById("finalScore");
+    const finalLevelDisplay = document.getElementById("finalLevel");
+    let score = 0;
+    let level = 1;
+    let obstacleSpeed = 3;
+    let gameRunning = false;
+    let obstacles = [];
+    let coins = [];
+    let jumping = false;
+    function createObstacle() {
+        const newObstacle = document.createElement("div");
+        newObstacle.className = "obstacle";
+        newObstacle.style.left = "600px";
+        document.getElementById("game").appendChild(newObstacle);
+        return newObstacle;
+    }
+    function createCoin() {
+        const newCoin = document.createElement("div");
+        newCoin.className = "coin";
+        newCoin.style.left = "700px";
+        newCoin.style.bottom = Math.random() < 0.5 ? "150px" : "0";
+        document.getElementById("game").appendChild(newCoin);
+        return newCoin;
+    }
+    function moveItems() {
+        if (!gameRunning) return;
+        obstacles.forEach((obstacle, index) => {
+            let obstaclePosition = parseInt(obstacle.style.left);
+            obstaclePosition -= (600 / obstacleSpeed) * 0.016;
+            if (obstaclePosition <= -30) {
+                obstacle.remove();
+                obstacles.splice(index, 1);
+            } else {
+                obstacle.style.left = obstaclePosition + "px";
+            }
+            if (checkCollision(obstacle)) gameOver();
+        });
+        coins.forEach((coin, index) => {
+            let coinPosition = parseInt(coin.style.left);
+            coinPosition -= (600 / obstacleSpeed) * 0.016;
+            if (coinPosition <= -30) {
+                coin.remove();
+                coins.splice(index, 1);
+            } else {
+                coin.style.left = coinPosition + "px";
+            }
+            if (checkCoinCollision(coin)) {
+                score++;
+                scoreDisplay.textContent = "Score: " + score;
+                coin.remove();
+                coins.splice(index, 1);
+            }
+        });
+        requestAnimationFrame(moveItems);
+    }
+    function checkCollision(obstacle) {
+        const characterTop = parseInt(window.getComputedStyle(character).getPropertyValue("bottom"));
+        let obstacleLeft = parseInt(obstacle.style.left);
+        return obstacleLeft < 70 && obstacleLeft > 40 && characterTop <= 30;
+    }
+    function checkCoinCollision(coin) {
+        const characterTop = parseInt(window.getComputedStyle(character).getPropertyValue("bottom"));
+        const coinBottom = parseInt(coin.style.bottom);
+        let coinLeft = parseInt(coin.style.left);
+        return coinLeft < 70 && coinLeft > 40 && characterTop >= coinBottom - 20 && characterTop <= coinBottom + 50;
+    }
+    function spawnObstacles() {
+        if (!gameRunning) return;
+        if (obstacles.length < 3) obstacles.push(createObstacle());
+        setTimeout(spawnObstacles, Math.random() * 2000 + 1000);
+    }
+    function spawnCoins() {
+        if (!gameRunning) return;
+        if (coins.length < 3) coins.push(createCoin());
+        setTimeout(spawnCoins, Math.random() * 2000 + 1000);
+    }
+    function jump() {
+        if (!jumping) {
+            jumping = true;
+            character.classList.add("jump");
+            setTimeout(() => {
+                character.classList.remove("jump");
+                jumping = false;
+            }, 500);
+        }
+    }
+    function gameOver() {
+        gameRunning = false;
+        finalScoreDisplay.textContent = score;
+        finalLevelDisplay.textContent = level;
+        gameOverScreen.style.display = "flex";
+        getRandomJoke();
+    }
+    function restartGame() {
+        score = 0;
+        level = 1;
+        obstacleSpeed = 3;
+        gameRunning = true;
+        gameOverScreen.style.display = "none";
+        obstacles.forEach(o => o.remove());
+        coins.forEach(c => c.remove());
+        obstacles = [];
+        coins = [];
+        moveItems();
+        spawnObstacles();
+        spawnCoins();
+    }
+    function startGame() {
+        gameRunning = true;
+        welcomeScreen.style.display = "none";
+        scoreDisplay.style.display = "block";
+        levelDisplay.style.display = "block";
+        moveItems();
+        spawnObstacles();
+        spawnCoins();
+    }
+    document.addEventListener("keydown", (e) => { if (e.code === "Space") jump(); });
+    async function getRandomJoke() {
+    try {
+        const response = await fetch('https://icanhazdadjoke.com/', {
+            headers: { Accept: 'application/json' }
+        });
+        const data = await response.json();
+        // Set the joke text first
+        document.getElementById("gameOver").querySelector("p").innerHTML = 
+            `${data.joke} <br> Score: <span id="finalScore"></span> | Level: <span id="finalLevel"></span>`;
+        // Update the score and level **AFTER** the joke is added
+        document.getElementById("finalScore").textContent = score;
+        document.getElementById("finalLevel").textContent = level;
+        
+    } catch (error) {
+        console.error('Error fetching dad joke:', error);
+        document.getElementById("gameOver").querySelector("p").innerHTML = 
+            `Oops! Couldn't load a joke. <br> Score: <span id="finalScore"></span> | Level: <span id="finalLevel"></span>`;
+        // Update the score and level in case of an error
+        document.getElementById("finalScore").textContent = score;
+        document.getElementById("finalLevel").textContent = level;
+    }
+}
+document.addEventListener("keydown", (e) => { 
+    if (e.code === "Space") {
+        if (!gameRunning) {
+            restartGame(); // Restart game if it's over
+        } else {
+            jump(); // Otherwise, jump
+        }
+    }
+});
+// Load the coin sound
+const coinSound = new Audio("pickupCoin.wav");
+function checkCoinCollision(coin) {
+    const characterTop = parseInt(window.getComputedStyle(character).getPropertyValue("bottom"));
+    const coinBottom = parseInt(coin.style.bottom);
+    let coinLeft = parseInt(coin.style.left);
+    
+    if (coinLeft < 70 && coinLeft > 40 && characterTop >= coinBottom - 20 && characterTop <= coinBottom + 50) {
+        // Play the coin sound
+        coinSound.play();
+        
+        // Increase score and remove coin
+        score++;
+        scoreDisplay.textContent = "Score: " + score;
+        coin.remove();
+        return true;
+    }
+    return false;
+}
+coins.forEach((coin, index) => {
+    let coinPosition = parseInt(coin.style.left);
+    coinPosition -= (600 / obstacleSpeed) * 0.016;
+    if (coinPosition <= -30) {
+        coin.remove();
+        coins.splice(index, 1);
+    } else {
+        coin.style.left = coinPosition + "px";
+    }
+    
+    // Only increase the score inside checkCoinCollision()
+    if (checkCoinCollision(coin)) {
+        coins.splice(index, 1);
+    }
+});
+</script>
+</body>
+</html>
+"
